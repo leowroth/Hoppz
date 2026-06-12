@@ -30,10 +30,16 @@ namespace Assets.Scripts.Objects {
 
         private int currentCycleIndex = 0;
 
+        private bool isPlayerInTop = false;
+        private bool isPlayerInBottom = false;
+        private Collider cachedPlayerCollider;
+
         public void Start() {
             SetPlatformType(currentType);
 
-            if (autoChangeIntervalSeconds > 0 && cycleTypes != null && cycleTypes.Length > 0) {
+            if (autoChangeIntervalSeconds > 0
+                && cycleTypes != null
+                && cycleTypes.Length > 0) {
                 currentCycleIndex = System.Array.IndexOf(cycleTypes, currentType);
                 if (currentCycleIndex < 0) currentCycleIndex = 0;
 
@@ -54,6 +60,8 @@ namespace Assets.Scripts.Objects {
         public void SetPlatformType(PlatformType newType) {
             currentType = newType;
             UpdateAppearance();
+
+            CheckPlayerCollisions();
         }
 
         private void UpdateAppearance() {
@@ -76,33 +84,49 @@ namespace Assets.Scripts.Objects {
         }
 
         public void HandleTopTriggerEnter(Collider playerCollider) {
-            if (currentType == PlatformType.IgnoreCollisionAbove) {
-                Physics.IgnoreCollision(playerCollider, solidCollider, true);
-            }
-            else if (currentType == PlatformType.Reset) {
-                ResetPlayer(playerCollider);
-            }
+            cachedPlayerCollider = playerCollider;
+            isPlayerInTop = true;
+            CheckPlayerCollisions();
         }
 
         public void HandleTopTriggerExit(Collider playerCollider) {
-            if (currentType == PlatformType.IgnoreCollisionAbove) {
-                Physics.IgnoreCollision(playerCollider, solidCollider, false);
-            }
+            isPlayerInTop = false;
+            CheckPlayerCollisions();
+            if (!isPlayerInTop && !isPlayerInBottom) cachedPlayerCollider = null;
         }
 
         public void HandleBottomTriggerEnter(Collider playerCollider) {
-            if (currentType == PlatformType.IgnoreCollisionBelow) {
-                Physics.IgnoreCollision(playerCollider, solidCollider, true);
-            }
-            else if (currentType == PlatformType.Reset) {
-                ResetPlayer(playerCollider);
-            }
+            cachedPlayerCollider = playerCollider;
+            isPlayerInBottom = true;
+            CheckPlayerCollisions();
         }
 
         public void HandleBottomTriggerExit(Collider playerCollider) {
-            if (currentType == PlatformType.IgnoreCollisionBelow) {
-                Physics.IgnoreCollision(playerCollider, solidCollider, false);
+            isPlayerInBottom = false;
+            CheckPlayerCollisions();
+            if (!isPlayerInTop && !isPlayerInBottom) cachedPlayerCollider = null;
+        }
+
+        private void CheckPlayerCollisions() {
+            if (cachedPlayerCollider == null) return;
+
+            if (currentType == PlatformType.Reset) {
+                if (isPlayerInTop || isPlayerInBottom) {
+                    ResetPlayer(cachedPlayerCollider);
+                    return;
+                }
             }
+
+            bool shouldIgnore = false;
+
+            if (currentType == PlatformType.IgnoreCollisionAbove && isPlayerInTop) {
+                shouldIgnore = true;
+            }
+            if (currentType == PlatformType.IgnoreCollisionBelow && isPlayerInBottom) {
+                shouldIgnore = true;
+            }
+
+            Physics.IgnoreCollision(cachedPlayerCollider, solidCollider, shouldIgnore);
         }
 
         private void ResetPlayer(Collider playerCollider) {
