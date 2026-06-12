@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -11,23 +12,46 @@ namespace Assets.Scripts.Objects {
         Reset
     }
 
-    public class ChangingPlatform : MonoBehaviour{
+    public class ChangingPlatform : MonoBehaviour {
         public Collider solidCollider;
         public Renderer platformRenderer;
 
         public PlatformType currentType = PlatformType.Solid;
+        public float autoChangeIntervalSeconds = 0f;
+        public PlatformType[] cycleTypes;
+
         public Transform resetPositionMarker;
+
 
         public Color colorSolid = Color.yellow;
         public Color colorIgnoreBelow = Color.green;
         public Color colorIgnoreAbove = Color.blue;
         public Color colorReset = Color.red;
 
+        private int currentCycleIndex = 0;
+
         public void Start() {
             SetPlatformType(currentType);
+
+            if (autoChangeIntervalSeconds > 0 && cycleTypes != null && cycleTypes.Length > 0) {
+                currentCycleIndex = System.Array.IndexOf(cycleTypes, currentType);
+                if (currentCycleIndex < 0) currentCycleIndex = 0;
+
+                StartCoroutine(AutoChangeRoutine());
+            }
+        }
+        private IEnumerator AutoChangeRoutine() {
+            WaitForSeconds wait = new(autoChangeIntervalSeconds);
+
+            while (true) {
+                yield return wait;
+
+                currentCycleIndex = (currentCycleIndex + 1) % cycleTypes.Length;
+                SetPlatformType(cycleTypes[currentCycleIndex]);
+            }
         }
 
-        public void SetPlatformType( PlatformType newType) {
+        public void SetPlatformType(PlatformType newType) {
             currentType = newType;
             UpdateAppearance();
         }
@@ -35,7 +59,7 @@ namespace Assets.Scripts.Objects {
         private void UpdateAppearance() {
             if (platformRenderer == null) return;
 
-            switch(currentType) {
+            switch (currentType) {
                 case PlatformType.Solid:
                     platformRenderer.material.color = colorSolid;
                     break;
